@@ -1,0 +1,377 @@
+---
+title: "L07 Layers"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Bud Green"
+pagetitle: "L07 Bud Green"
+
+format:
+  html:
+    toc: true
+    toc-location: left
+    embed-resources: true
+    code-fold: show
+    link-external-newwindow: true
+    fig-dpi: 300
+
+execute:
+  warning: false
+
+from: markdown+emoji 
+---
+
+## Overview
+
+The goal of this lab is to explore more plots in `ggplot2` and continue to leverage the use of various layers to build complex and well annotated plots. 
+
+## Datasets
+
+We'll be using the `tech_stocks.rda` dataset which is already in the `/data` subdirectory in our **data_vis_labs** project. 
+
+We have a new dataset, `NU_admission_data.csv`, which will need to be downloaded and added to our `/data` subdirectory. 
+
+We will also be using the `mpg` dataset which comes packaged with `ggplot2` --- use `?ggplot2::mpg` to access its codebook.
+
+```{r, warning=FALSE, message=FALSE}
+#| label: load-pkgs-data
+
+# load package(s)
+library(tidyverse)
+library(patchwork)
+
+# load datasets
+load("data/tech_stocks.rda")
+admin_data <- read_csv("data/NU_admission_data.csv") %>% 
+  janitor::clean_names()
+data(mpg)
+
+```
+
+## Exercise 1
+
+Using `mpg` and the `class_dat` dataset created below, recreate the following graphic as precisely as possible in two different ways.
+
+*Hints:*
+
+- Transparency is 0.6
+- Horizontal spread is 0.1
+- Larger points are 5
+- Larger points are "red"
+
+```{r}
+#| label: ex-1
+
+# additional dataset for plot
+class_dat <- mpg |>
+  group_by(class) |>
+  summarise(
+    n = n(),
+    mean_hwy = mean(hwy),
+    label = str_c("n = ", n, sep = "")
+  )
+
+```
+
+### Plot 1 -- using `mean_hwy`
+
+::: {.callout-tip icon=false}
+
+## Solution
+```{r}
+#| label: ex-1-1
+
+ggplot(data = mpg, aes(class, hwy)) +
+  geom_point(position = position_jitter(width = 0.1)) +
+  geom_point(
+    data = class_dat,
+    mapping = aes(y = mean_hwy),
+    size = 5,
+    alpha = 0.6,
+    color = "red") +
+  labs(
+    x = "Vehicle class",
+    y = "Highway miles per gallon"
+  ) +
+  theme_minimal() +
+  geom_text(
+    data = class_dat,
+    aes(x = class, y = 10, label = label)
+  ) +
+  scale_y_continuous(
+    limits = c(10, 45)
+  )
+
+#note to self - have to redefine x and y with new aes because it will inherit the old aes and sometimes that's a problem because here mpg has a hwy column, but class_dat doesn't
+```
+
+
+:::
+
+### Plot 2 -- not using `mean_hwy`
+
+::: {.callout-tip icon=false}
+## Solution
+
+```{r}
+#| label: ex-1-2
+
+ggplot(data = mpg, aes(class, hwy)) +
+  geom_point(position = position_jitter(width = 0.1)) +
+  geom_point(
+    data = mpg %>% 
+      group_by(class) %>%
+      summarize(hwy_mean = mean(hwy)),
+    aes(y = hwy_mean),
+    size = 5,
+    alpha = 0.6,
+    color = "red"
+    ) +
+  labs(
+    x = "Vehicle class",
+    y = "Highway miles per gallon"
+  ) +
+  theme_minimal() +
+  geom_text(
+    data = class_dat,
+    aes(x = class, y = 10, label = label)
+  ) +
+  scale_y_continuous(
+    limits = c(10, 45)
+  )
+```
+
+:::
+
+## Exercise 2
+
+Using the `perc_increase` dataset derived from the `tech_stocks` dataset, recreate the following graphic as precisely as possible.
+
+*Hints:*
+
+- Hex color code `#56B4E9`
+- Justification of 1.1
+- Size is 5
+
+```{r}
+#| label: ex-2
+
+# percentage increase data
+perc_increase <- tech_stocks |>
+  arrange(desc(date)) |>
+  distinct(company, .keep_all = TRUE) |>
+  mutate(
+    perc = 100 * (price - index_price) / index_price,
+    label = str_c(round(perc), "%", sep = ""),
+    company = fct_reorder(factor(company), perc)
+  )
+```
+
+::: {.callout-tip icon=false}
+## Solution
+
+```{r}
+#|label: ex-2-1
+
+ggplot(perc_increase, aes(perc, company)) +
+  geom_bar(stat = "identity", fill = "#56B4E9") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  ) +
+  geom_text(
+    aes(label = label),
+    hjust = 1.1,
+    size = 5,
+    color = "white"
+  ) +
+  scale_x_continuous(
+    name = NULL,
+    expand = c(0, 0)
+  )
+```
+
+:::
+
+## Exercise 3
+
+:::{.callout-warning}
+
+## Warning
+
+Some thoughtful data wrangling will be needed and it will be demonstrated in class --- **Do not expect a video**.
+
+:::
+
+Examine the data and the plot provided in `undergraduate-admissions-statistics.pdf` --- this pdf was collected from the [Northwestern Data Book webpage](https://www.adminplan.northwestern.edu/ir/data-book/). As you can see they have overlaid two plot types on one another by using dual y-axes. 
+
+There is one major error they make with the bars in their graphic. **Explain what it is.**
+
+:::{.callout-tip icon=false}
+
+## Error
+The bars are too tall. They didn't remove matriculants and acceptances from applications, so some people got double or triple counted and that's wrong.
+:::
+
+::: {.callout-tip icon=false}
+## Solution
+
+```{r}
+#| label: ex-3-barplot
+
+#bar data
+bar_data <- admin_data %>% 
+  select(-contains("_rate")) %>% 
+  pivot_longer(
+    cols = -year,
+    names_to = "category",
+    values_to = "value"
+  ) %>% 
+  mutate(
+    bar_labels = prettyNum(value, big.mark = ",")
+  )
+
+#building bar plot
+bar_plot <- bar_data %>% 
+  filter(year >= 2002) %>% 
+  ggplot(aes(year, value)) +
+  geom_col(
+    mapping = aes(fill = category),
+    width = 0.6,
+    position = "identity"
+  ) +
+  geom_text(
+    aes(label = bar_labels),
+    size = 1.5,
+    color = "white",
+    vjust = 1,
+    nudge_y = -200
+  ) +
+  scale_x_continuous(
+    name = "Entering Year",
+    breaks = 2002:2022,
+    expand = c(0, 0.25)
+  ) +
+  scale_y_continuous(
+    name = "Applications",
+    limits = c(0, 70000),
+    breaks = seq(0, 70000, 10000),
+    labels = scales::label_comma(),
+    expand = c(0,0)
+  ) +
+  scale_fill_manual(
+    name = NULL,
+    limits = c("applications", "admitted_students", "matriculants"),
+    labels = c("Applications", "Admitted Students", "Matriculants"),
+    values = c("#B6ACD1", "#836EAA", "#4E2A84")
+  ) +
+  theme_classic() +
+  theme(
+    legend.justification = c(0.5, 1),
+    legend.position = "inside",
+    legend.position.inside = c(0.5, 1),
+    legend.direction = "horizontal",
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  ggtitle("Northwestern University\nUndergraduate Admissions 2002-2022")
+  
+#line data
+rate_data <- admin_data %>%
+  select(year, contains("_rate")) %>% 
+  pivot_longer(
+    cols = -year,
+    names_to = "category",
+    values_to = "value"
+  ) %>% 
+    mutate(
+    y_label = case_when(
+      category == "admission_rate" ~ value - 2,
+      category == "yield_rate" ~ value + 2
+    ),
+    rate_labels = str_c(value, "%"),
+    )
+
+#legend labels (shape, fill, color)
+legend_labels <- c("Admission Rate", "Yield Rate")
+
+#building line plot
+rate_plot <- rate_data %>% 
+  filter(year >= 2002) %>% 
+  ggplot(aes(year, value)) +
+  geom_line(aes(color = category)) +
+  geom_point(
+    aes(fill = category, shape = category),
+    color = "white",
+    size = 2
+  ) +
+  geom_text(
+    mapping = aes(y = y_label, label = rate_labels),
+    size = 2,
+    color = "grey40"
+  ) +
+  scale_x_continuous(
+    name = "Entering Year",
+    breaks = 2002:2022,
+    expand = c(0, 0.35)
+  ) +
+  scale_y_continuous(
+    name = "Rate",
+    limits = c(0, 70),
+    breaks = seq(0, 65, 5),
+    labels = scales::label_percent(scale = 1),
+    expand = c(0,0)
+  ) +
+  scale_shape_manual(
+    name = NULL,
+    values = c(21, 24),
+    labels = legend_labels
+  ) +
+  scale_fill_discrete(
+    name = NULL,
+    labels = legend_labels
+  ) +
+  scale_color_discrete(
+    name = NULL,
+    labels = legend_labels
+  ) +
+  theme_classic() +
+  theme(
+    legend.justification = c(0.5, 1),
+    legend.position = "inside",
+    legend.position.inside = c(0.5, 1),
+    legend.direction = "horizontal",
+    plot.title = element_text(hjust = 0.5)    
+  ) +
+  ggtitle("Northwestern University\nUndergraduate Admissions 2002-2022")
+
+```
+
+```{r}
+#| label: ex-3-final-plot
+#combining the two plots
+#| fig-width: 10
+#| fig-height: 10
+
+rate_plot / bar_plot
+```
+
+:::
+
+Using `NU_admission_data.csv`^[Data is taken from the pdf. The file includes a few extra years.], create **two separate plots** that display the same information instead of trying to put it all in one single plot --- **stack them** using `patchwork` or `cowplot`. 
+
+Which approach do you find communicates the information better, the single dual y-axes plot or the two separate plot approach? **Why?**
+
+::: {.callout-tip icon=false}
+## Solution
+
+I think that it's better to use the two charts when considering all applicants compared to yield and acceptance rate. I think the dual axes plot could work if it was just trying to show either the acceptance rate with the total applications and acceptances OR the yield rate with the acceptances and matriculants.
+
+:::
+
+*Hints:*
+
+- Form 4 datasets (helps you get organized, but not entirely necessary): 
+    - 1 that has bar chart data, 
+    - 1 that has bar chart label data, 
+    - 1 that has line chart data, and 
+    - 1 that has line chart labels 
+- Consider using `ggsave()` to save the image with a fixed size so it is easier to pick font sizes.

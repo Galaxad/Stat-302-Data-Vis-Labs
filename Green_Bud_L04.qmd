@@ -1,0 +1,217 @@
+---
+title: "L04 Maps"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Bud Green"
+pagetitle: "L04 Bud Green"
+
+format:
+  html:
+    toc: true
+    toc-location: left
+    embed-resources: true
+    link-external-newwindow: true
+    code-fold: show
+    fig-dpi: 300
+    
+execute:
+  warning: false
+
+from: markdown+emoji
+reference-location: margin
+citation-location: margin 
+---
+
+## Overview
+
+The goal of this lab is to explore various ways of building maps with `ggplot2`.
+
+Challenges are not mandatory for students to complete. We highly recommend students attempt them though. *We would expect graduate students to attempt the challenges.*
+
+## Datasets
+
+We'll be using the `US_income.rda` dataset which should be placed in the `/data` subdirectory in our **data_vis_labs** project. You'll also be downloading your own data to build maps.
+
+```{r warning=FALSE, message=FALSE, include=FALSE}
+#| label: load-packages
+
+
+# Load package(s)
+library(tidyverse)
+library(maps)
+library(tigris)
+library(sf)
+library(geodata)
+library(tibble)
+library(statebins)
+library(ggspatial)
+library(rnaturalearth)
+library(tidycensus)
+library(acs)
+
+# Load dataset(s)
+load("data/US_income.rda")
+```
+
+## Exercise 1
+
+### Plot 1
+
+Make a county map of a US state using `geom_polygon()`. Maybe use your home state or a favorite state. Please do NOT use the state in the ggplot2 book example.
+
+Optional: Consider adding major cities (or your home town).
+
+*Hints:*
+
+-   See section [6.1](https://ggplot2-book.org/maps.html#polygonmaps) in our book.
+-   Void theme
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: ex-1-1
+
+#tx county data
+tx_counties <- map_data("county", "texas") %>%
+  select(lon = long, lat, group, id = subregion) %>% 
+  as_tibble()
+
+tx_cities <- tibble(
+  city_name = c("aledo", "dallas", "san antonio", "austin", "houston"),
+  lat = c(32.690663904, 32.7767, 29.4241, 30.2672, 29.7604),
+  lon = c(-97.601997592, -96.7970, -98.4936, -97.7431, -95.3698)
+)
+
+ggplot(data = tx_counties, aes(lon, lat)) +
+  geom_polygon(
+    aes(group = group),
+    fill = "white",
+    color = "grey50"
+  ) +
+  geom_point(data = tx_cities) +
+  coord_quickmap() +
+  theme_void() +
+  ggtitle("Texas")
+
+```
+:::
+
+### Plot 2
+
+Now use `geom_sf()` instead. You'll need to download data for this. You can use either the `tigris` ([github page](https://github.com/walkerke/tigris)) or `geodata` packages. Either `tigris`' `counties()` with `cb = TRUE` or `geodata`'s `gadm()` could be useful.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: ex-1-2
+
+tx_counties <- tigris::counties(state = "TX", cb = TRUE, progress_bar = FALSE)
+
+ggplot(tx_counties) +
+  geom_sf(fill = NA) +
+  theme_void() +
+  labs(title = "Texas")
+
+
+```
+:::
+
+## Exercise 2
+
+Using the `US_income` dataset, recreate the following graphics as precisely as possible.
+
+```{r}
+#| label: ex-2-data-wrangle
+
+# Setting income levels
+US_income <- mutate(
+  US_income,
+  income_bins = cut(
+    ifelse(is.na(median_income), 25000, median_income),
+    breaks = c(0, 40000, 50000, 60000, 70000, 80000),
+    labels = c("< $40k", "$40k to $50k", 
+               "$50k to $60k", "$60k to $70k", "> $70k"),
+    right = FALSE
+  )
+)
+```
+I know eval: FALSE is how it was set up, but it wouldn't render when that was happening.
+### Plot 1
+
+*Hints:*
+
+-   `geom_sf()` --- boundary color is `"grey80"` and size is 0.2
+-   `viridis` package (`discrete = TRUE` in `scale_*` function)
+-   Void theme
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: ex-2-1
+
+ggplot(data = US_income) +
+  geom_sf(aes(fill = income_bins), color = "grey80", size = 0.2) +
+  scale_fill_viridis_d() +
+  theme_void() +
+  labs(fill = paste("Median", "\nIncome"))
+
+```
+:::
+
+### Plot 2
+
+*Hints:*
+
+-   `statebins::geom_statebins()`
+-   `viridis` package (`discrete = TRUE` in `scale_*` function)
+-   Statebins theme
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: ex-2-2
+
+ggplot(data = US_income) +
+  geom_statebins(aes(state = name, fill = income_bins)) +
+  scale_fill_viridis_d() +
+  theme_statebins() +
+  labs(fill = paste("Median", "\nIncome"))
+
+```
+:::
+
+## Exercise 3
+
+Pick any city or foreign country to build a map for. You can dress it up or make it as basic as you want. Also welcome to try building a graphic like that depicted at the end of section [6.5](https://ggplot2-book.org/maps.html#rastermaps) --- use a different region though.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: ex-3-1
+
+canada_provinces <- ne_states(country = "canada", returnclass = "sf")
+
+ggplot() +
+  geom_sf(data = canada_provinces, aes(fill = region), color = "black", size = 5) +
+  geom_text(data = canada_provinces, aes(label = name, x = longitude, y = latitude), size = 1.5, color = "black") +
+  theme_void() +
+  labs(fill = "Region")
+  
+```
+:::
+
+## Challenge(s)
+
+**Optional**
+
+Using the `tidycensus` package and few others, try to create a map like below using [these directions](https://walkerke.github.io/tidycensus/articles/spatial-data.html). Try using a different geographical area and a different variable from the ACS.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+This was not happening for me. I tried to do a lot of different things for this and the last one and just none of them worked the way I wanted them to.
+:::

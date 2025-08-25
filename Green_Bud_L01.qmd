@@ -1,0 +1,275 @@
+---
+title: "L01 Introduction"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Bud Green"
+
+format:
+  html:
+    toc: true
+    embed-resources: true
+    link-external-newwindow: true
+
+execute:
+  warning: false
+
+from: markdown+emoji 
+---
+
+## Goals
+
+1.  Ensure software for this course is properly installed and functional
+2.  Understand the importance of visualization
+3.  Develop and follow a proper workflow
+4.  Construct and explore a few plots using `ggplot2`
+5.  Add layers to a plot that include title, axis, and pre-set themes
+
+```{r}
+#| label: load-packages
+
+# Load package(s)
+library(tidyverse)
+
+# Data can go here as well
+load("data/legosets.rda")
+```
+
+## Tasks
+
+Complete the following tasks. For many of these you'll need to simply **indicate that you have completed the task**.
+
+### Task 1
+
+Download and install [R Software](https://cran.rstudio.com/).
+
+::: {.callout-tip icon="false"}
+## Task 1
+
+**Complete!**
+:::
+
+### Task 2
+
+1.  Download and install [RStudio](https://www.rstudio.com/products/rstudio/download4/).
+2.  Open RStudio and ensure it and R have been properly installed.
+3.  Go to **Tools** \> **Global Options** and change the two indicated settings below and click **Apply**. Your other options are likely different than what is pictured. This is okay and we suggest you leave them as is until you become more familiar with RStudio.
+
+**See html file for missing figure**
+
+::: {.callout-tip icon="false"}
+## Task 2
+
+**Complete!**
+:::
+
+### Task 3
+
+Take some time to explore the [Quarto](https://quarto.org/) and [ggplot2](https://ggplot2.tidyverse.org/index.html) websites. We suggest bookmarking them because they will be extremely useful references.
+
+We highly recommend reading through the [Tutorial: Hello, Quarto](https://quarto.org/docs/get-started/hello/rstudio.html).
+
+::: {.callout-tip icon="false"}
+## Task 3
+
+**Complete and Bookmarked**
+:::
+
+### Task 4
+
+Install the following packages:
+
+-   `tidyverse`, actually it is a collection/universe of packages being installed
+-   `skimr`
+-   `devtools`
+
+::: {.callout-tip icon="false"}
+## Task 4
+
+**Installed**
+:::
+
+### Task 5
+
+1.  Download `L01_introduction.zip` from Canvas.
+2.  Unzip the file and place the `data_vis_labs` directory where you would like to keep all of your lab work for this course.
+3.  Open RStudio and create a project folder for this *existing directory*.
+4.  Rename `template_L01.qmd` to `Lastname_Firstname_L01.qmd`
+5.  Render the file with `Cmd/Ctrl + Shift + K` or click the Render button.
+
+::: {.callout-tip icon="false"}
+## Task 5
+
+**Complete**
+:::
+
+### Task 6 (optional)
+
+If you are new to RStudio we strongly recommend reading through Chapters 1-4 of the [Stat 202 text book](https://nustat.github.io/intro-stat-data-sci/).
+
+::: {.callout-tip icon="false"}
+## Task 6
+
+**Incomplete but noted and bookmarked**
+:::
+
+## Exercise 1
+
+Let's delve into why data visualizations are important.
+
+### Visualization 1
+
+Read the following article and answer the following questions.
+
+[bars_vs_grocery_stores](https://flowingdata.com/2014/05/29/bars-versus-grocery-stores-around-the-world/)
+
+1)  List one thing you learned from the article?
+
+**Germany and Poland had fewer bars per 10,000 people than other European countries**
+
+2)  How did the main visualization (United States) enhance the article?
+
+**The US map shows which areas have more bars than grocery stores in general and which areas have a lot more of one than the other with the darker dots. It also helps show the overall trend of more grocery stores nationwide**
+
+3)  List at least one thing you liked about the \[United States\] graphic and one thing you think could be improved.
+
+**I liked that the graphic uses green and brown colors becasue they are easy to tell apart and nice to look at. I think that making the dots represent 10,000 people instead of a 10 mile radius would have been a better way to show which areas are more focused on bars than grocery stores and have more of a bar culture like Wisconsin. This is because people are not distributed across the country evenly.**
+
+<br>
+
+### Visualization 2
+
+Open this [dashboard](https://edgarruiz.shinyapps.io/db-dashboard/) and answer the following questions.
+
+1)  What story is this dashboard telling and how do the visualizations enhance that?
+
+**This dashboard is telling how many flights an airline has in a year, in an average day, what percent are delayed, how many flights happen each month, and where most of the flights are going to. From the Delta page the main story being told is that Atlanta is a very popular airport that has a lot of traffic and this is shown by the bar graph where Atlanta has a much longer bar than all the other airports**
+
+2)  What might a dashboard provide that a static graphic cannot.
+
+**With the dashboard it is easier to splice the data and look at specific layers by clicking on different months, airlines, and airports to see more detailed data than can be shown on only one static graphic**
+
+## Exercise 2
+
+Let's look at some interesting patterns in the history of LEGO! We'll be using data from the [`lego` package](https://github.com/seankross/lego) located `data/legosets.rda`.
+
+First, let's look at the average cost of LEGO sets over time. The main variable of interest here is `USD_MSRP`, or the manufacturer's suggested retail price in constant dollars.
+
+```{r}
+#| label: ex-2-plot
+
+#build line chart
+#aesthetic mapping is how variables affect each others
+
+# data wrangling for average set price each year
+# %>% is a pipe. Also can be |>
+yearly_data = legosets %>%
+  group_by(Year) %>%
+  summarize(
+    avg_price = mean(USD_MSRP, na.rm = TRUE),
+    num_sets = n()
+  )
+
+# build line chart
+ggplot(
+  data = yearly_data,
+  mapping = aes(x = Year, y = avg_price)
+  ) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(
+    title = "Average price of LEGO Sets",
+    subtitle = "Amounts reported in current USD",
+    y = "Price (USD)",
+    x = "Year",
+    caption = "Source: LEGO"
+  )
+```
+
+## Exercise 3
+
+Let's explore how many unique themes LEGO now offers.
+
+```{r}
+#| label: ex-3-ugly-plot
+#| echo: false
+
+theme_counts <- legosets %>%
+  count(Theme)
+
+theme_counts %>%
+  ggplot(aes(y = Theme, x = n)) +
+  geom_col() +    # or geom_bar(stat = "identity") +
+  labs(
+    x = "Number of Sets",
+    y = NULL
+  ) +
+  theme_minimal()
+```
+
+What is bad/ugly about the plot above?
+
+**Well all the themes are squished together and it's hard to read. Also there's no real order to the themes in terms of number of sets so it looks sort of random. There's too much data at once and it's too small to really interpret**
+
+Now remake the plot BUT with the improvements addressing the issues you noted above.
+
+```{r}
+#| label: ex-3-fix
+#| echo: false
+
+#data wrangling
+theme_counts = legosets %>%
+  count(Theme, sort = TRUE) %>% 
+  mutate(
+    Theme = factor(Theme) %>%
+      fct_inorder() %>% 
+      fct_rev()
+    )
+
+#building plot
+theme_counts %>%
+  slice_max(n, n = 10) %>% 
+  ggplot(aes(y = Theme, x = n)) +
+  geom_col() +    # or geom_bar(stat = "identity") +
+  labs(
+    title = "Most Popular LEGO Themes",
+    x = "Number of Sets",
+    y = NULL,
+    caption = "Source: LEGO"
+  ) +
+  theme_minimal()
+```
+
+## Exercise 4
+
+Now you try, let's look at how the number of pieces per set has changed over time. Because Duplo sets are much smaller (since they're designed for toddlers), we made a special indicator variable for them shown in the code below.
+
+Use an appropriate graph to plot the average number of pieces over time. Have either separate lines or separate plots for the Duplo and Lego categories. Be sure the title, x-axis, and y-axis are properly labeled.
+
+```{r}
+#| label: ex-4-lego-pieces
+
+pieces_per_year = legosets %>%
+  # new indicator variable
+  mutate(Duplo = ifelse(Theme == "Duplo", "Duplo", "Lego")) %>%
+  group_by(Year, Duplo) %>%
+  summarize(Avg_Pieces = mean(Pieces, na.rm = TRUE))
+
+#building a graph
+ggplot(
+  data = pieces_per_year,
+  mapping = aes(x = Year, y = Avg_Pieces, color = Duplo)
+) +
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  labs(
+    title = "Average Pieces in a LEGO set over time",
+    y = "Pieces",
+    x = "Year",
+    caption = "Source: LEGO"
+  )
+```
+
+What trends do you notice in the plots? Are you surprised by the plots?
+
+**I noticed that Duplo sets are usually around 50 pieces each year, but have been slowly increasing over time since 1990. non-Duplo sets were usually around 100-200 pieces until the early 2000s when sets started to have a lot more pieces on average before and since 2005 sets are 200-400 pieces. I was surprised by Duplo having more pieces than non-Duplo in 1975. I also thought that the cycle of peaks and valleys in pieces in a set each year was interesting becuase I expected it to just gradually increase over time fairly smoothly.**

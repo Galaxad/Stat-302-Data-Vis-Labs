@@ -1,0 +1,420 @@
+---
+title: "L02 ggplot 1"
+subtitle: "Data Visualization (STAT 302)" 
+author: "Bud Green"
+date: today
+
+format:
+  html:
+    toc: true
+    embed-resources: true
+    link-external-newwindow: true
+
+execute:
+  warning: false
+
+from: markdown+emoji 
+---
+
+## Goals
+
+1.  use additional color, shape, size, transparency aesthetics
+2.  recognize a variety of different geom layers
+3.  set x and y limits
+4.  read documentation and access help files
+5.  read in .rda and .txt files
+6.  use proper organization
+
+::: callout-tip
+## Organization is important!
+
+1.  All packages should always be loaded at the TOP of the document.
+
+2.  All data should be in your `/data` subdirectory. Data loading should go at the top of the document under the libraries.
+:::
+
+## Datasets
+
+For this activity we will be using the `blue_jays`, `BA_degrees`, `dow_jones_industrial` and `cdc` data set that should be located in your `/data` subdirectory. An explanation of the variables in the data set are provided below in their respective Exercises.
+
+```{r warning=FALSE, message=FALSE, include=FALSE}
+#| label: load-packages
+
+# Load package(s)
+library(tidyverse)
+library(splines)
+
+# Load data
+load("data/BA_degrees.rda")
+load("data/blue_jays.rda")
+load("data/dow_jones_industrial.rda")
+
+cdc = read_delim(file = "data/cdc.txt", delim = "|", show_col_types = FALSE) %>% 
+  mutate(
+    genhlth = factor(
+      genhlth,
+      levels = c("excellent", "very good", "good", "fair", "poor"))
+  )
+```
+
+## Exercise 1
+
+We'll be using data from the `blue_jays.rda` dataset to answer the following questions and construct the following plots.
+
+Below is a description of the variables contained in the dataset.
+
+-   `BirdID` - ID tag for bird
+-   `KnownSex` - Sex coded as F or M
+-   `BillDepth` - Thickness of the bill measured at the nostril (in mm)
+-   `BillWidth` - Width of the bill (in mm)
+-   `BillLength` - Length of the bill (in mm)
+-   `Head` - Distance from tip of bill to back of head (in mm)
+-   `Mass` - Body mass (in grams)
+-   `Skull` - Distance from base of bill to back of skull (in mm)
+-   `Sex` - Sex coded as `0 = female` or `1 = male`
+
+<br>
+
+### Question 1.1
+
+Three commonly used aesthetics for enhancing a graphic are color, size, and shape. We can either map variables or fixed values to these.
+
+In the `blue_jays` dataset which variables would be appropriate to map to the `size` aesthetic? The `shape` aesthetic? The `color` aesthetic?
+
+::: {.callout-tip icon="false"}
+## Solution
+
+I would use size for BillDepth, BillWidth, BillLength, Head, Mass, and Skull. I would use color for sex. I don't think using shape for any of these on their own makes sense because it would mean turning the range of measurements into defined categories
+:::
+
+### Plot 1
+
+Construct a scatterplots of `Head` by `Mass` with the following criteria:
+
+-   `color` aesthetic set to Northwestern purple (`#4E2A84`)
+-   `shape` aesthetic set a solid/filled triangle
+-   `size` aesthetic set to 2.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: ex-1-1-plot-1
+
+# built scatterplot
+ggplot(data = blue_jays, mapping = aes(Mass, Head)) +
+  geom_point(color = "#4E2A84", size = 2, shape = 17) +
+  theme_minimal()
+
+```
+:::
+
+### Plot 2
+
+Construct a scatterplot of `Head` by `Mass` with the following criteria:
+
+-   `size` aesthetic to 2.
+-   Either `Sex` or `KnownSex` mapped to the `color` aesthetic.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+```{r}
+#| label: ex-1-1-Plot-2
+
+#using Sex
+ggplot(data = blue_jays, mapping = aes(Mass, Head, color = Sex)) +
+  geom_point(size = 2) +
+  theme_minimal()
+
+#using KnownSex
+ggplot(data = blue_jays, mapping = aes(Mass, Head, color = KnownSex)) +
+  geom_point(size = 2) +
+  theme_minimal()
+
+```
+
+:::
+
+### Question 1.2
+
+Was it more appropriate to map `Sex` or `KnownSex` to the `color` aesthetic in Plot 2 and why?
+
+::: {.callout-tip icon="false"}
+## Solution
+
+I think using "KnownSex" makes more sense in this case because both KnownSex and Sex are using a binary separation. But using mapping Sex to color gives a gradient key without a gradient being used. Using KnownSex instead gives a key with a different colored dot for each category.
+:::
+
+### Question 1.3
+
+Consider the `color` aesthetic in Plot 1 and Plot 2 above. **Explain why** these two usages of the `color` aesthetic are meaningfully different.
+
+::: {.callout-tip icon="false"}
+## Solution
+
+In plot 1 changing the color is for readability because it applies to all the data points so it doesn't help to distinguish any specific data. In plot 2 using color is helping to separate out data points in terms of sex and shows the different distributions between mass and head size with regard to sex.
+:::
+
+## Exercise 2
+
+We'll be using data from the `BA_degrees.rda` which is already in the `/data` subdirectory in our **data_vis_labs** project. Below is a description of the variables contained in the dataset.
+
+`BA_degrees.rda`
+
+-   `field` - field of study
+-   `year_str` - academic year (e.g. 1970-71)
+-   `year` - closing year of academic year
+-   `count` - number of degrees conferred within a field for the year
+-   `perc` - field's percentage of degrees conferred for the year
+
+```{r}
+#| label: ex-2-data-wrangle
+
+# Wrangling for plotting
+ba_data <- BA_degrees %>%
+  # mean % per field
+  group_by(field) %>%
+  mutate(mean_perc = mean(perc)) %>%
+  # Only fields with mean >= 5%
+  filter(mean_perc >= 0.05) %>%
+  # Organizing for plotting
+  arrange(desc(mean_perc), year) %>%
+  ungroup() %>%
+  mutate(field = fct_inorder(field))
+```
+
+Using the `ba_data` dataset derived from `BA_degrees`, recreate the following graphics as precisely as possible.
+
+### Plot 1
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+#| label: ex-2-plot-1
+
+ggplot(data = ba_data, mapping = aes(year, perc)) +
+  geom_line() +
+  facet_wrap(~ field) +
+  labs(x = "Year", y = "Proportion of degrees")
+```
+:::
+
+### Plot 2
+
+*Hints:*
+
+-   Transparency is 0.5
+-   Color used is`"red"`
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+#| label: ex-2-plot-2
+
+ggplot(data = ba_data, mapping = aes(year, perc)) +
+  geom_ribbon(aes(ymin = 0, ymax = perc), alpha = 0.5, fill = "red") +
+  geom_line(color = "red") +
+  facet_wrap(~ field) +
+  labs(x = "Year", y = "Proportion of degrees")
+```
+:::
+
+### Plot 3
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+#| label: ex-2-plot-3
+
+ggplot(data = ba_data, mapping = aes(year, perc, color = field, group = field)) +
+  geom_line() +
+  labs(x = "Year", y = "Proportion of degrees")
+```
+
+:::
+
+## Exercise 3
+
+Using the `dow_jones_industrial` dataset, track the Dow Jones Industrial Average at close each day during 2009. Recreate the following graphics as precisely as possible.
+
+```{r}
+#| label: ex-3-data-wrangle
+
+# Only keep observations within 2009 range
+djia_date_range <- dow_jones_industrial %>%
+  filter(
+    date >= ymd("2009/01/01") & date < ymd("2010/01/01")
+    )
+```
+
+
+### Plot 1
+
+It will be easier to see the trend if we add a smooth fit line to the graph.
+
+*Hints:*
+
+-   colors: "purple", "red", "green"
+-   Wiggliness for `loess` is 0.3
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+#| label: ex-3-plot-1
+
+ggplot(data = djia_date_range, aes(date, close)) +
+  geom_line(color = "purple") +
+  geom_smooth(method = "loess", color = "green", se = TRUE, span = 0.3, fill = "red") +
+  labs(x = "", y = "Dow Jones Industrial Average")
+```
+:::
+
+### Plot 2
+
+There are many different smoothing methods in statistics. By default `geom_smooth()` uses `loess`.
+
+Another extremely popular smoothing method in statistics is the use of splines. A spline function is a curve constructed from polynomial segments that are subject to conditions or continuity at their joints. Generally, a difficulty is you need to determine the number of `knots`, however this method is popular in predictive models.
+
+Add a natural cubic spline smoother with `df = 6`.
+
+*Hints:*
+
+-   need the `splines` package
+-   use method `"lm"`
+-   `y ~ ns(x, 6)`
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+#| label: ex-3-plot-2
+
+ggplot(data = djia_date_range, aes(date, close)) +
+  geom_line(color = "black") +
+  geom_smooth(method = "lm", formula = y ~ ns(x, 6) ,color = "blue", se = FALSE) +
+  labs(x = "", y = "Dow Jones Industrial Average")
+```
+:::
+
+## Exercise 4
+
+We'll be using the BRFSS (Behavioral Risk Factor Surveillance System) survey collected annually by the Centers for Disease Control and Prevention (CDC). The data can be found in the provided `cdc.txt` file --- place this file in your `/data` subdirectory. The dataset contains 20,000 complete observations/records of 9 variables/fields, described below.
+
+-   `genhlth` - How would you rate your general health? (excellent, very good, good, fair, poor)
+-   `exerany` - Have you exercised in the past month? (`1 = yes`, `0 = no`)
+-   `hlthplan` - Do you have some form of health coverage? (`1 = yes`, `0 = no`)
+-   `smoke100` - Have you smoked at least 100 cigarettes in your life time? (`1 = yes`, `0 = no`)
+-   `height` - height in inches
+-   `weight` - weight in pounds
+-   `wtdesire` - weight desired in pounds
+-   `age` - in years
+-   `gender` - `m` for males and `f` for females
+
+<br>
+
+Using the `cdc` dataset, we want to visualize the **distribution** between weight and gender based on general health. Recreate the Plot 1 and Plot 2 which represent 2 attempts at this.
+
+<br>
+
+### Plot 1
+
+*Hints:*
+
+-   Transparency is 0.2
+-   Horizontal axis should have lower limit of 50 and upper limit of 400
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+#| labael: ex-4-plot-1
+
+# build faceted/small multiples densities
+ggplot(cdc, aes(x = weight, fill = genhlth, color = genhlth)) +
+  geom_density(alpha = 0.2) +
+  facet_wrap( ~ gender) +
+  xlim(c(50, 400))
+
+```
+
+:::
+
+### Plot 2
+
+*Hints:*
+
+-   Transparency is 0.4
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+ggplot(cdc, aes(x = gender, y = weight, fill = gender)) +
+  geom_boxplot(alpha = 0.4, outliers = TRUE) +
+  facet_wrap( ~ genhlth, nrow = 1, strip.position = "bottom") +
+  ylim(c(50, 500))
+```
+
+:::
+
+### Plot 3
+
+Choose one more way to visualize the **distribution** of weight based on gender and general health. (Many ways to do this).
+
+*Requirements:*
+
+-   The geom layer cannot be `geom_boxplot()` or `geom_density()`
+-   Appropriately label the x- and y- axis
+-   Add a title
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+#| label: ex-4-plot-3
+
+breaks = seq(0, 500, by = 50)
+
+ggplot(cdc, aes(x = cut(weight, breaks), fill = genhlth)) +
+  geom_bar() +
+  facet_wrap(~ gender) +
+  labs(x = "Weight by 50 lbs") +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+```
+
+:::
+### Question 4.1
+
+Compare and contrast the different ways to visualize a distribution. In other words, when might you use a histogram vs density vs boxplot? Which did you find the most useful in interpreting the plots above?
+
+::: {.callout-tip icon="false"}
+## Solution
+I thought that the boxplot was the most useful to interpret the data because it shows how the IQR weight range is different for excellent health compared to other genhlth categories. I think boxplots are helpful to compare what is 'normal' between different groups and the density plot is more useful to see the spread of data for a given category
+:::
+
+## Exercise 5
+
+Using the `cdc` dataset, construct this plot in **two** ways. Once using `geom_bar()` and once using the `geom_col()`. May need to do some data wrangling for one of these.
+
+::: {.callout-tip icon="false"}
+## Solution
+```{r}
+#| label: ex-5-plot-1
+
+#using geom_bar
+ggplot(data = cdc, aes(genhlth)) +
+  geom_bar() +
+  labs(x = "General Health", y = "Count")
+```
+```{r}
+#| label: ex-5-plot-2
+
+#using geom_col
+
+genhlth_count = cdc %>% 
+  count(genhlth)
+
+ggplot(data = genhlth_count, aes(genhlth, n)) +
+  geom_col() +
+  labs(x = "General Health", y = "Count")
+```
+
+:::
